@@ -43,17 +43,26 @@ Kp_ac_4 = 2.3; % K_fb = 2.3
 % (2020, Adrievsky, CPHS, "Pilot-Induced Oscillations and Their Prevention" for Kp = 2.7)
 num_ac_5 = [86.9, 79.27, 2.24];
 den_ac_5 = [1, 27.06, 57.45, 150.75, 50.73, 1.32];
-Gs_ac_5 = tf(num_ac_4, den_ac_4);
+Gs_ac_5 = tf(num_ac_5, den_ac_5);
 
 Kp_ac_5 = 2.7; % K_fb = 2.7
 
+%% Example 6: Simple Pitch-Attitude Autopilot of F-16
+% % (2010, F. Lewis, Book, Aircraft Control and Simulation, Chapter 4: Autopilots, Example 4.6: Simple Pitch-Attitude Autopilot)
+
+num_ac_6 = [-1.133, -0.65242, -0.01207, -1.9934e-06];
+den_ac_6 = [1.0, 1.05193, 1.76849, 0.01747, 0.01419, 2.6845e-06];
+Gs_ac_6 = tf(num_ac_6, den_ac_6);
+
+Kp_ac_6 = 4; % K_fb = 4
+
 %% Deployment of the Parameters of the Blocks of Simulink Model
 
-% TF of the paper of Amato et al 2000, CDC
-num_ac = num_ac_1; % numerator of the transfer function of the aircraft
-den_ac = den_ac_1; % denominator of the transfer function of the aircraft
-Gs_ac = Gs_ac_1;  % transfer function of the aircraft
-Kp = Kp_ac_1; % pilot of the transfer function of the aircraft 
+% % TF of the paper of Amato et al 2000, CDC
+% num_ac = num_ac_1; % numerator of the transfer function of the aircraft
+% den_ac = den_ac_1; % denominator of the transfer function of the aircraft
+% Gs_ac = Gs_ac_1;  % transfer function of the aircraft
+% Kp = Kp_ac_1; % pilot of the transfer function of the aircraft 
 
 % TF of Duda, 1987, Flight control system design considering rate saturation
 % num_ac = num_ac_2; % numerator of the transfer function of the aircraft
@@ -79,6 +88,12 @@ Kp = Kp_ac_1; % pilot of the transfer function of the aircraft
 % Gs_ac = Gs_ac_5;  % transfer function of the aircraft
 % Kp = Kp_ac_5; % pilot of the transfer function of the aircraft
 
+% % (2010, F. Lewis, Book, Aircraft Control and Simulation, Chapter 4: Autopilots, Example 4.6: Simple Pitch-Attitude Autopilot)
+% num_ac = num_ac_6; % numerator of the transfer function of the aircraft
+% den_ac = den_ac_6; % denominator of the transfer function of the aircraft
+% Gs_ac = Gs_ac_6;  % transfer function of the aircraft
+% Kp = Kp_ac_6; % pilot of the transfer function of the aircraft
+
 f0 = figure('Name', 'Bode Plot of Aircraft Transfer Function only', 'NumberTitle', 'off');
 bode(Kp*Gs_ac);
 grid on
@@ -93,8 +108,8 @@ A = X_i_max;
 %
 R = 0.725;        % slew rate
 %
-modelName1 = 'rle6sinewave'; % sine wave generation
-modelName2 = 'rle6';         % Rate Limiter + Aircraft + Pilot loop
+modelName1 = 'rle7sinewave'; % sine wave generation
+modelName2 = 'rle7';         % Rate Limiter + Aircraft + Pilot loop
 
 load_system(modelName1);
 load_system(modelName2);
