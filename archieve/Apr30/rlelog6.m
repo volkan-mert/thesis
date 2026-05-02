@@ -93,8 +93,8 @@ A = X_i_max;
 %
 R = 0.725;        % slew rate
 %
-modelName1 = 'rle7sinewave'; % sine wave generation
-modelName2 = 'rle7';         % Rate Limiter + Aircraft + Pilot loop
+modelName1 = 'rle6sinewave'; % sine wave generation
+modelName2 = 'rle6';         % Rate Limiter + Aircraft + Pilot loop
 
 load_system(modelName1);
 load_system(modelName2);
