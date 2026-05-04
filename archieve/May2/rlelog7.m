@@ -21,7 +21,7 @@ Gs_ac_7 = Gs_claw_7*Gs_ldynac_7; % TF of the open-loop by q / q_c.
 
 Gs_ac = Gs_ac_7;
 
-[num_ac, den_ac] = tfdata(Gs_ac, 'v');
+[num_ac, den_ac] = tfdata(Gs_ac, 'v'); % This is unstable system that is not a Bounded Input and Bounded Output System
 
 Kp = 1; % Pilot Gain
 
@@ -136,7 +136,10 @@ phase = rad2deg(angle(H));
 
 sys_frd = frd(H, omega);
 
-sys_tf = 
+% sys_est = tfest(sys_frd, 1, 0);
+% 
+% [num_ac, den_ac] = tfdata(sys_est, 'v');
+
 %% Nichols Chart via FRD
 hold on
 f6 = figure('Name', 'Nichols Chart (First Harmonic) by FRD', 'NumberTitle', 'off');

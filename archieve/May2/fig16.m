@@ -29,8 +29,6 @@ hold on
 xline(-180, '--'); % in degrees0
 yline(0, '--'); % in dBs
 hold on
-line([-180 -135], [0 1], 'Color', 'k', 'LineStyle', '-', 'LineWidth', 2);
-hold on
 plot(pick_cursor_phase_olop, pick_cursor_magnitude_olop,'rp', 'MarkerSize', 15, 'MarkerFaceColor', 'r');
 hold on
 text(pick_cursor_phase_olop + 5, pick_cursor_magnitude_olop, '\omega_{OLOP} = 5.1', 'Color', 'red', 'FontWeight', 'bold', 'FontSize', 12);
