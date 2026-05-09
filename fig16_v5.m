@@ -125,53 +125,43 @@ legend show
 % sys_frd2 = frd(A2, phi2);
 % sys_frd3 = frd(A3, phi3);
 
+H = A .* exp(1j*phi);            % complex describing function N(jω,A)
+
+sys_frd_R1 = frd(H(m1), omega(m1), 'FrequencyUnit','rad/s');  % ξ < 1      (linear)
+sys_frd_R2 = frd(H(m2), omega(m2), 'FrequencyUnit','rad/s');  % 1 ≤ ξ < 1.862 (transition)
+sys_frd_R3 = frd(H(m3), omega(m3), 'FrequencyUnit','rad/s');  % ξ ≥ 1.862  (saturated)
+
+%% --------- FRD objects per region ---------------------------------------
+
+
+figure('Color','w','Name','Fig. 16 — q/q_c with RLE DF','Position',[80 80 900 700]);
+
 opts = nicholsoptions;
 opts.PhaseMatching       = 'on';
 opts.PhaseMatchingFreq   = 1;            % rad/s
 opts.PhaseMatchingValue  = -180;         % anchor phase at -180° at ω = 1 rad/s
 opts.PhaseWrapping       = 'on';
 opts.PhaseWrappingBranch = -360;
+nicholsplot(Gs_ac_7, opts);   hold on;
+nicholsplot(sys_frd_R1,   opts); hold on;
+nicholsplot(sys_frd_R2,   opts); hold on;
+nicholsplot(sys_frd_R3,   opts); hold on;
 
-sys_frd1 = frd(A1, phi1);
-sys_frd2 = frd(A2, phi2);
-sys_frd3 = frd(A3, phi3);
-% 
-% % Build all three objects on the SAME omega grid (multiplication well defined)
-% N_frd1  = frd(A1 .* exp(1j*phi1), phi1);           % describing function alone
-% N_frd2  = frd(A2 .* exp(1j*phi2), phi2);           % describing function alone
-% N_frd3  = frd(A3 .* exp(1j*phi3), phi3);           % describing function alone
-% 
-% G_frd  = frd(Gs_ac_7, omega);                    % linear plant on same grid
-% 
-% LN_frd1 = G_frd * N_frd1;                          % open-loop with RLE DF
-% LN_frd2 = G_frd * N_frd2;                          % open-loop with RLE DF
-% LN_frd3 = G_frd * N_frd3;                          % open-loop with RLE DF
-% 
-% figure('Color','w','Name','Fig. 16 — q/q_c with RLE DF','Position',[80 80 900 700]);
-% hold on;
-% nicholsplot(Gs_ac_7, opts);   
-% nicholsplot(N_frd1,   opts);
-% nicholsplot(N_frd2,   opts);
-% nicholsplot(N_frd3,   opts);
-% nicholsplot(LN_frd1,  opts);
-% nicholsplot(LN_frd2,  opts);
-% nicholsplot(LN_frd3,  opts);
-% %
-% yline(0,'--');
-% xline(-180,'--');
-% 
-% % OLOP marker (cursor-picked on the published, matched-phase chart)
-% plot(pick_cursor_phase_olop, pick_cursor_magnitude_olop, 'rp', ...
-%      'MarkerSize', 15, 'MarkerFaceColor', 'r');
-% text(pick_cursor_phase_olop + 5, pick_cursor_magnitude_olop, ...
-%      sprintf('\\omega_{OLOP} = %.3f rad/s', w_opt), ...
-%      'Color','r','FontWeight','bold','FontSize',12);
-% 
-% grid on;
-% xlim([-300-2 -60-2]);
-% ylim([-20-2 15+2]);
-% legend({'G_{ac\_7}', ...
-%         'N(j\omega,A)', ...
-%         'G_{ac\_7}\cdot N(j\omega,A)', ...
-%         'OLOP'}, 'Location','southwest');
-% hold off;
+yline(0,'--');
+xline(-180,'--');
+
+% OLOP marker (cursor-picked on the published, matched-phase chart)
+plot(pick_cursor_phase_olop, pick_cursor_magnitude_olop, 'rp', ...
+     'MarkerSize', 15, 'MarkerFaceColor', 'r');
+text(pick_cursor_phase_olop + 5, pick_cursor_magnitude_olop, ...
+     sprintf('\\omega_{OLOP} = %.3f rad/s', w_opt), ...
+     'Color','r','FontWeight','bold','FontSize',12);
+
+grid on;
+xlim([-300-2 -60-2]);
+ylim([-20-2 15+2]);
+legend({'G_{ac\_7}', ...
+        'N(j\omega,A)', ...
+        'G_{ac\_7}\cdot N(j\omega,A)', ...
+        'OLOP'}, 'Location','southwest');
+hold off;
