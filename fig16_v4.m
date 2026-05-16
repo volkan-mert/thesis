@@ -30,7 +30,7 @@ Ain = 13.68/180*pi;           % pilot input amplitude × K_f   [rad]
 
 f       = @(w) (R - Ain*abs(evalfr(F_uc_2_urle, 1j*w))*w)^2;
 fminopt = optimoptions('fmincon','Display','off');
-[w_opt, ~] = fmincon(f, 5, [],[],[],[], 0, 100, [], fminopt);
+[w_opt, ~] = fmincon(f, 1, [],[],[],[], 0, 100, [], fminopt);
 
 fprintf('Closed-loop onset frequency  ω_onset = %.4f rad/s\n\n', w_opt);
 
@@ -38,7 +38,7 @@ fprintf('Closed-loop onset frequency  ω_onset = %.4f rad/s\n\n', w_opt);
 %  Piecewise RLE describing function   (Duda / Hanke / Gilbreath)
 %% =========================================================================
 omega_onset = w_opt;                             % from Eq. 18  — NOT 1
-omega       = logspace(-1, 2, 10000);              % must cover ω = 1 rad/s
+omega       = logspace(-1, 2, 1000);              % must cover ω = 1 rad/s
 xi          = omega / omega_onset;               % ω / ω_onset
 
 A   = zeros(size(omega));                        % |N(jω,A)|
@@ -83,7 +83,7 @@ fprintf('  ω/ω_onset = 1.862 :  |N| = %+6.3f dB,  ∠N = %+7.3f deg\n\n', ...
 %% =========================================================================
 %  FIGURE 1  —  Bode of the DF alone   (≈ Fig. 12)
 %% =========================================================================
-figure('Color','w','Name','RLE DF — Bode','Position',[80 80 920 620]);
+f1 = figure(Name = "Bode Diagram of RLE DF");
 
 subplot(2,1,1);
 semilogx(xi, A_dB, 'b', 'LineWidth', 1.8); grid on; box on;
@@ -103,64 +103,73 @@ ylim([-100 10]);
 %% =========================================================================
 %  FIGURE 2  —  DF on its own Nichols-style axes (standalone, no matching)
 %% =========================================================================
-figure('Color','w','Name','RLE DF — Nichols-style','Position',[80 80 760 600]);
 
-plot(phi_deg(m1), A_dB(m1), 'Color',[0.20 0.65 0.30], 'LineWidth', 2.2); hold on;
-plot(phi_deg(m2), A_dB(m2), 'Color',[0.58 0.40 0.74], 'LineWidth', 2.2);
-plot(phi_deg(m3), A_dB(m3), 'Color',[0.84 0.15 0.16], 'LineWidth', 2.2);
+f2 = figure(Name = "Nichols Chart of the RLE DF");
+
+hold on;
+
+plot(phi_deg(m1), A_dB(m1), 'b*'); 
+plot(phi_deg(m2), A_dB(m2), 'r-.');
+plot(phi_deg(m3), A_dB(m3), 'g:');
 
 plot(0, 0, 'ko', 'MarkerFaceColor','k', 'MarkerSize', 6);
 text(-3, 1.6, '\omega = \omega_{onset}', 'FontSize', 10);
 
 phi_b = rad2deg(-acos(pi*0.537/2));
 A_b   = 20*log10(4*0.537/pi);
+
 plot(phi_b, A_b, 'ko', 'MarkerFaceColor','k', 'MarkerSize', 6);
-text(phi_b+1, A_b+1.2, '\omega = 1.862\,\omega_{onset}', 'FontSize', 10);
+text(phi_b+1, A_b+1.2, '\omega_{onset}', 'FontSize', 10);
+
 grid on; 
-box on;
+% box on;
+
 xlabel('Phase  \angle N(j\omega,A)  [deg]');
 ylabel('Gain  |N(j\omega,A)|  [dB]');
 title('RLE describing function on Nichols-style axes (standalone)');
-legend({'Region I (no sat.)', ...
-        'Region II (transition)', ...
-        'Region III (full sat.)'}, 'Location','southwest');
 
+legend({'Region I (no sat.)', 'Region II (transition)', 'Region III (fully saturated)'}, 'Location', 'south')
+
+xlim auto
+ylim auto
+
+hold off
 %% =========================================================================
 %  FIGURE 3  —  Fig. 16 reproduction:
 %               Nichols of  G(jω),  N(jω,A),  G·N   with phase matching
-%% =========================================================================
-opts = nicholsoptions;
-opts.PhaseMatching       = 'on';
-opts.PhaseMatchingFreq   = 1;            % rad/s
-opts.PhaseMatchingValue  = -180;         % anchor phase at -180° at ω = 1 rad/s
-opts.PhaseWrapping       = 'on';
-opts.PhaseWrappingBranch = -360;
 
 % Build all three objects on the SAME omega grid (multiplication well defined)
 N_frd  = frd(A .* exp(1j*phi), omega);           % describing function alone
 G_frd  = frd(Gs_ac_7, omega);                    % linear plant on same grid
 LN_frd = G_frd * N_frd;                          % open-loop with RLE DF
 
-figure('Color','w','Name','Fig. 16 — q/q_c with RLE DF','Position',[80 80 900 700]);
-nicholsplot(Gs_ac_7, opts);   
-hold on;
-nicholsplot(N_frd,   opts);
-nicholsplot(LN_frd,  opts);
-yline(0,'--');
-xline(-180,'--');
+%%
+f3 = figure(Name = 'Plotting Fig. 16: q/q_c with RLE DF');
 
-% OLOP marker (cursor-picked on the published, matched-phase chart)
-plot(pick_cursor_phase_olop, pick_cursor_magnitude_olop, 'rp', ...
-     'MarkerSize', 15, 'MarkerFaceColor', 'r');
-text(pick_cursor_phase_olop + 5, pick_cursor_magnitude_olop, ...
-     sprintf('\\omega_{OLOP} = %.3f rad/s', w_opt), ...
-     'Color','r','FontWeight','bold','FontSize',12);
+hold on;
+
+nicholsplot(Gs_ac_7, 'bo');
+
+nicholsplot(N_frd, 'ro'); % Piecewise Describing Function's Transfer Function
+
+nicholsplot(LN_frd, 'k.'); % Aircraft Nonlinear Open-Loop Transfer Function
+
+yline(0,'--'); 
+
+xline(-180,'--'); 
+
+plot(pick_cursor_phase_olop, pick_cursor_magnitude_olop, 'rp', 'MarkerSize', 15, 'MarkerFaceColor', 'r'); % OLOP marker (cursor-picked on the published, matched-phase chart)
+
+text(pick_cursor_phase_olop + 5, pick_cursor_magnitude_olop, sprintf('\\omega_{OLOP} = %.3f rad/s', w_opt), 'Color','r','FontWeight','bold','FontSize',12);
 
 grid on;
-xlim([-300-2 -60-2]);
-ylim([-20-2 15+2]);
-legend({'G_{ac\_7}', ...
-        'N(j\omega,A)', ...
-        'G_{ac\_7}\cdot N(j\omega,A)', ...
-        'OLOP'}, 'Location','southwest');
+
+xlim auto
+ylim auto
+% xlim([-300-2 -60-2]);
+% ylim([-20-2 15+2]);
+
+legend({'Aircraft Linear OLTF', 'Piecewise Describing Function''s Transfer Function', ...
+    'Aircraft Nonlinear Open-Loop Transfer Function','', '',''}, 'Location','Best');
+
 hold off;

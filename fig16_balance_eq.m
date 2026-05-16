@@ -1,13 +1,7 @@
 clear; clc; close all;
 
-%% =========================================================================
-%  Reproduce Fig. 16 — Open-loop Nichols of q/q_c with RLE describing fn.
-%  Reference: Rodrigues et al., CEAS Aeronautical Journal (2026),
-%             "Conditional integrator sliding mode control to reduce
-%              susceptibility to pilot-induced oscillations"
-%% =========================================================================
+%%  Linear plant : control law × aircraft dynamics 
 
-%% --------- Linear plant : control law × aircraft dynamics ----------------
 num_claw_7   = [5.21, -273.7855, -1425.456, -700.224];
 den_claw_7   = [1, 21.36, 545.6, 605.7, 0];
 Gs_claw_7    = tf(num_claw_7, den_claw_7);
@@ -22,7 +16,8 @@ Gs_ac_7      = Gs_claw_7 * Gs_ldynac_7;          % open-loop  q / q_c
 pick_cursor_magnitude_olop = 2.0629;             % dB
 pick_cursor_phase_olop     = -136.6216;          % deg
 
-%% --------- Closed-loop onset frequency  ω_onset  (Eq. 18) ----------------
+%% Closed-loop onset frequency  ω_onset  (Eq. 18) 
+
 F_uc_2_urle = feedback(Gs_claw_7, Gs_ldynac_7);  % from u_c to u_RLE
 
 R   = deg2rad(60);            % rate limit               [rad/s]
@@ -34,9 +29,8 @@ fminopt = optimoptions('fmincon','Display','off');
 
 fprintf('Closed-loop onset frequency  ω_onset = %.4f rad/s\n\n', w_opt);
 
-%% =========================================================================
-%  Harmonic Balance Numerical Solver (Eqs 22 and 23) via Anonymous Functions
-%% =========================================================================
+%% Harmonic Balance Numerical Solver (Eqs 22 and 23)
+
 omega_onset = w_opt;                             
 omega       = logspace(-1, 2, 1000);              
 
@@ -51,8 +45,7 @@ phi_sol   = zeros(size(omega));
 A         = zeros(size(omega)); % |N(jω,A)| of the RLE
 phi       = zeros(size(omega)); % ∠N(jω,A) of the RLE
 
-% 2. Anonymous function for the piecewise Describing Function N(Adc)
-% Evaluates Region I, II, and III using boolean masking. Returns [mag_N; phi_N]
+% 2. Anonymous function for the piecewise Describing Function N(Adc) : Evaluates Region I, II, and III using boolean masking. Returns [mag_N; phi_N]
 calc_N = @(Adc, w, RateL, ratio) ...
     (ratio < 1) .* [1; 0] + ...
     (ratio >= 1 & ratio < 1.862) .* ...
@@ -61,16 +54,14 @@ calc_N = @(Adc, w, RateL, ratio) ...
     (ratio >= 1.862) .* ...
         [4*(1./ratio)/pi; -acos(min(1, pi*(1./ratio)/2))]; 
 
-% 3. Anonymous function for the objective (Eqs 22 & 23)
-% Uses feval to evaluate calc_N once and distribute its output [mag_N; phi_N]
+% 3. Anonymous function for the objective (Eqs 22 & 23) : Uses feval to evaluate calc_N once and distribute its output [mag_N; phi_N]
 harmonic_eqs = @(X, w, mGc, pGc, mGa, pGa) feval(...
     @(Adc, ph, N_vals) [ ...
         (Adc / mGc) * cos(ph - pGc) + Adc * mGa * N_vals(1) * cos(ph + pGa + N_vals(2)) - K_gain * A_qc; ...
         (Adc / mGc) * sin(ph - pGc) + Adc * mGa * N_vals(1) * sin(ph + pGa + N_vals(2)) ...
     ], X(1), X(2), calc_N(X(1), w, R_rate, w * X(1) / R_rate));
 
-% 4. Solve the coupled non-linear equations
-% Sweeping downwards to catch the saturated branch naturally
+% 4. Solve the coupled non-linear equations : Sweeping downwards to catch the saturated branch naturally
 X0 = [R_rate / omega(end), -pi/2]; 
 opts_fsolve = optimoptions('fsolve', 'Display', 'off', 'Algorithm', 'trust-region-dogleg');
 
@@ -121,74 +112,36 @@ fprintf('  ω/ω_onset = 1.000 :  |N| = %+6.3f dB,  ∠N = %+7.3f deg\n', ...
 fprintf('  ω/ω_onset = 1.862 :  |N| = %+6.3f dB,  ∠N = %+7.3f deg\n\n', ...
         A_dB(kII), phi_deg(kII));
 
-%% =========================================================================
-%  FIGURE 1  —  Bode of the DF alone   (≈ Fig. 12)
-%% =========================================================================
-figure('Color','w','Name','RLE DF — Bode','Position',[80 80 920 620]);
 
-subplot(2,1,1);
-semilogx(xi, A_dB, 'b', 'LineWidth', 1.8); grid on; box on;
-xline(1.000, '--k', 'LineWidth', 0.9);
-xline(1.862, '--k', 'LineWidth', 0.9);
-ylabel('|N(j\omega,A)|  [dB]');
-title('RLE describing function — harmonic balance solution');
+%% Transfer Functions
 
-subplot(2,1,2);
-semilogx(xi, phi_deg, 'r', 'LineWidth', 1.8); grid on; box on;
-xline(1.000, '--k', 'LineWidth', 0.9);
-xline(1.862, '--k', 'LineWidth', 0.9);
-xlabel('\omega/\omega_{onset}');
-ylabel('\angle N(j\omega,A)  [deg]');
-ylim([-100 10]);
-
-%% =========================================================================
-%  FIGURE 2  —  DF on its own Nichols-style axes (standalone, no matching)
-%% =========================================================================
-figure('Color','w','Name','RLE DF — Nichols-style','Position',[80 80 760 600]);
-
-hold on;
-
-plot(phi_deg(m1), A_dB(m1), 'b.'); 
-plot(phi_deg(m2), A_dB(m2), 'r:');
-plot(phi_deg(m3), A_dB(m3), 'go');
-
-plot(0, 0, 'ko', 'MarkerFaceColor','k', 'MarkerSize', 6);
-text(-3, 1.6, '\omega = \omega_{onset}', 'FontSize', 10);
-
-phi_b = rad2deg(-acos(pi*0.537/2));
-A_b   = 20*log10(4*0.537/pi);
-plot(phi_b, A_b, 'ko', 'MarkerFaceColor','k', 'MarkerSize', 6);
-text(phi_b+1, A_b+1.2, '\omega_{onset}', 'FontSize', 10);
-grid on; 
-box on;
-xlabel('Phase  \angle N(j\omega,A)  [deg]');
-ylabel('Gain  |N(j\omega,A)|  [dB]');
-title('RLE describing function on Nichols-style axes (standalone)');
-legend({'Region I (no sat.)', ...
-        'Region II (transition)', ...
-        'Region III (full sat.)'}, 'Location','southwest');
-
-
-%% =========================================================================
-%  FIGURE 3  —  Fig. 16 reproduction:
-%               Nichols of  G(jω),  N(jω,A),  G·N   with phase matching
-
-% Build all three objects on the SAME omega grid (multiplication well defined)
 N_frd  = frd(A .* exp(1j*phi), omega);           % solved describing function alone
 G_frd  = frd(Gs_ac_7, omega);                    % linear plant on same grid
 LN_frd = G_frd * N_frd;                          % open-loop with RLE DF
 
 %%
 
-figure('Color','w','Name','Fig. 16 — q/q_c with RLE DF','Position',[80 80 900 700]);
+opts = nicholsoptions;
+opts.PhaseMatching = 'on';
+opts.PhaseMatchingFreq = omega(1); % Anchor at the lowest frequency % 
+opts.PhaseMatchingValue = -180;    % Force the anchor to start at -180
+opts.PhaseWrapping       = 'on';
+opts.PhaseWrappingBranch = -360;
+
+% opts2 = nicholsoptions;
+% opts2.PhaseMatching = 'on';
+% opts2.PhaseMatchingFreq = omega(1); % Anchor at the lowest frequency
+% opts2.PhaseMatchingValue = -180;    % Force the anchor to start at -180
+
+figure(Name='Fig. 16: q/q_c with RLE DF');
 
 hold on;
-% 
-% nicholsplot(Gs_ac_7, 'b.');
 
-nicholsplot(N_frd, 'r.'); % Piecewise Describing Function's Transfer Function
+nicholsplot(N_frd, 'r.', opts); % RLE Piecewise Describing Function's Transfer Function
 
-% nicholsplot(LN_frd, 'k.'); % Aircraft Nonlinear Open-Loop Transfer Function
+nicholsplot(G_frd, 'b.', opts); % A/C Linear OLTF
+
+nicholsplot(LN_frd, 'k.', opts); % A/C Nonlinear OLTF = (A/C Linear OLTF) .* (RLE Piecewise Describing Function's Transfer Function) 
 
 yline(0,'--'); 
 
@@ -198,9 +151,9 @@ plot(pick_cursor_phase_olop, pick_cursor_magnitude_olop, 'rp', 'MarkerSize', 15,
 
 text(pick_cursor_phase_olop + 5, pick_cursor_magnitude_olop, sprintf('\\omega_{OLOP} = %.3f rad/s', w_opt), 'Color','r','FontWeight','bold','FontSize',12);
 
-grid on;
 
-legend({'Aircraft''s Linear OLTF','Piecewise Describing Function''s TF','Aircraft''s Nonlinear OLTF','','',''}, 'Location', 'best', 'Orientation', 'horizontal')
+
+grid on;
 
 xlim auto
 ylim auto
