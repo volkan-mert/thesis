@@ -39,10 +39,8 @@ R   = 60;
 
 % System numbers
 K   = 13.68;
-Gc  = tf( 5.21 * conv([1 -57.36], conv([1 4.26], [1 0.55])), ...
-          conv([1 2*0.442*22.85 22.85^2], conv([1 0], [1 1.16])) );
-Gac = tf(-10.524 * conv([1 1.562], conv([1 0.038], [1 0])), ...
-          conv([1 2*0.212*0.088 0.088^2], conv([1 3.75], [1 -1.44])) );
+Gc  = tf( 5.21 * conv([1 -57.36], conv([1 4.26], [1 0.55])), conv([1 2*0.442*22.85 22.85^2], conv([1 0], [1 1.16])) );
+Gac = tf(-10.524 * conv([1 1.562], conv([1 0.038], [1 0])), conv([1 2*0.212*0.088 0.088^2], conv([1 3.75], [1 -1.44])) );
 
 % Linear closed loop  pcl = K*Gc / (1 + Gc*Gac)
 pcl = K*Gc / (1 + Gc*Gac);
@@ -136,6 +134,8 @@ legend('Linear G_c G_{ac}', 'OLOP describing function', 'Location','best');
 % Axis centered on the critical point (-180 deg, 0 dB)
 xlim([-300 -50])
 ylim([-20 20])
+
+grid on
 
 hold off
 
