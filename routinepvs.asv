@@ -1,0 +1,15 @@
+clear; clc ;close all
+
+modelName = 'pvsa';
+
+load_system(modelName);
+
+n = 10000; % Resolution
+
+w   = logspace(-1, 2, n);           % The input frequency range
+
+for i = 1:length(w)
+
+    
+
+end
