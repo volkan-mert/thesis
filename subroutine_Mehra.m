@@ -1,0 +1,51 @@
+clear; clc; close all
+
+%% Draw Figure 7 and Figure 8 of Mehra-1998-Bifurcation-Limit-Cycle Paper:
+% X-15 Hopf Bifurcation Analysis
+% "Mehra, R., & Prasanth, R. (1998, August). Bifurcation and limit cycle 
+% analysis of nonlinear pilot induced oscillations. In 23rd Atmospheric 
+% Flight Mechanics Conference (p. 4249)."
+
+%% System Parameters
+
+R = 15; % slew-rate limit [deg/s]
+qco = 1;  % pilot command (kick) amplitude
+fHzList  = 0.1:0.1:2;  % command frequency [Hz], within the paper's [0.1 2] band
+
+wradsList = 2*pi*fHzList;
+tauList = [0, 0.03, 0.06, 0.09];       % the four curves
+KpList  = 0.1:0.1:5;                % pilot-gain grid (refine near the jump)
+
+%% Prepare and Run the model
+
+mdl = "Mehra";            % model name (or full path)
+load_system(mdl);         % load model without opening GUI
+open_system(mdl);         % optional: open model window
+
+    % for k = 1:length(tauList)
+    % 
+    %     tau = tauList(k);
+    % 
+    %     for m = 1:length(KpList)   
+    % 
+    %         Kp = KpList(m);
+    % 
+    %         sprintf("--- Kp: %d, tau: %0.3f ---", Kp, tau)    
+    % 
+    %     end
+    % 
+    % end
+
+
+Kp = 2.8; % the trigger point is 2.7
+tau = 0.00;
+
+set_param(mdl,"StopTime","40");   % example: set stop time
+out = sim(mdl);           % run simulation, returns Simulink.SimulationOutput
+
+% inspect results: out.yout or out.get('logsout') depending on model logging
+% close_system(mdl,1);      % close 0: without saving, 1: with saving
+
+plot(out.theta.Data, out.thetadot.Data)
+% ylim([-100, 100]);
+% xlim([-50, 50]);

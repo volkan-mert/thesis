@@ -1,0 +1,179 @@
+clear;clc;close all
+%%
+tic
+%
+t_stop = 10*2*pi;      % simulation stop time
+num_t_step = 1e4;      % numbers of time step
+t = linspace(0, t_stop, num_t_step)';      % time
+X_i_max = 1;
+A = X_i_max;
+%
+R = 0.725;        % slew rate
+%
+modelName1 = 'rle6sinewave'; % sine wave generation
+modelName2 = 'rle6'; % Rate Limiter Element
+
+load_system(modelName1); % Loads the model into memory without opening the window
+load_system(modelName2); % Loads the model into memory without opening the window
+
+% Show Simulink Model and the Scope
+
+% open_system(modelName);
+
+    scopes = find_system(modelName2, 'BlockType', 'Scope');
+    for sc = 1:length(scopes)
+        open_system(scopes{sc});
+    end
+
+%% Blocks of Simulink Model
+
+% Aircraft Block of the aircraft transfer function of X-15 PIO during flare
+% (2000, F. Amato*, R. Iervolino*, M. Pandit†, S.Scala‡, L.Verde, Analysis of Pilot-in-the-Loop Oscillations Due to Position and Rate Saturations, CDC Paper)
+
+num_ac = [3.476 3.1708072 0.0896237936]; % numerator of the transfer function of the Aircraft
+
+den_ac = [1 0.8608 5.3159942 0.108928 0.0529]; % denominator of the transfer function of the Aircraft
+
+Gs_ac = tf(num_ac, den_ac); % transfer function of the aircraft
+
+% Pilot Gain Block
+Kp = 3.5; % pilot gain (corresponding to 20 degrees of phase margin of the linearised model)
+
+%%
+
+cnt = 0;
+
+% omega = 0.1:0.1:100; % Linear increments
+omega = logspace(-1,2,100); % logarithmic increments
+% omega = 0.1:0.1:0.1; % Linear increments
+u = zeros(num_t_step,length(omega));
+
+for i = 1:length(omega)
+    w = omega(i);
+    % u(:, i) = X_i_max*sin(w*t);        % input signal
+    out1 = sim(modelName1, 'StopTime', num2str(t_stop));
+    % u(:, i) = out1.myinput.Data;
+    u(:, i) = interp1(out1.myinput.Time, out1.myinput.Data, t, 'linear', 'extrap');
+end
+
+% inputData = [t, u];          % [time value] format for From Workspace
+% assignin('base','myInput',inputData);
+
+inputDataTS = timeseries(u, t);     % u is num_t_step × length(omega), t is num_t_step × 1
+assignin('base','myInput',inputDataTS);
+
+if any(isnan(u(:))) || any(isinf(u(:)))   % must be 0
+    disp('Information: Input Signal Data contain Inf or NaN values!!! Change or fix the variable''inputDataTS''.');
+else
+    disp('Information: Input Signal Data don''t contain Inf or NaN values.');
+end
+
+% In the model, set From Workspace block Data = myInput
+out2 = sim(modelName2);
+% After sim finishes, read output variable from To Workspace, e.g.:
+outData = out2.yout;           % if To Workspace used default name
+t = out2.tout;
+
+%%
+
+for i = 1:length(omega)
+
+    w = omega(i);
+    y = outData(:, i);
+    T_period = 2*pi/w;
+    t_stop = T_period * 10;
+    
+    % idx = t > (t(end) - T_period); % Indices of the last period
+    idx = t > (t(end) - T_period); % Indices of the last period
+    t_last = t(idx);
+    y_last = y(idx);
+
+    % Perform Numerical Integration for 1st Harmonic
+    % b1: Sine component, a1: Cosine component
+    b1 = (2/T_period) * trapz(t_last, y_last .* sin(w * t_last));
+    a1 = (2/T_period) * trapz(t_last, y_last .* cos(w * t_last));
+
+    % Complex Response
+    H(i) = (b1 + 1i*a1) / A;
+
+    mag(i) = abs(H(i));
+    phase(i) = rad2deg(angle(H(i)));
+
+end
+
+%% Frequency Response Data-model
+
+sys_frd = frd(H, omega);
+
+%% Bode Plot
+figure(1);
+subplot(2,1,1);
+semilogx(omega, 20*log10(mag), 'b-o', 'LineWidth', 1.5);
+grid on; 
+ylabel('Magnitude (dB)'); 
+title('Nonlinear Bode Plot (First Harmonic)');
+xline(R/A,'r--','Label','R/A','LabelOrientation','horizontal');
+
+subplot(2,1,2);
+semilogx(omega, phase, 'r-o', 'LineWidth', 1.5);
+grid on; 
+ylabel('Phase (deg)'); 
+xlabel('Frequency (rad/s)');
+xline(R/A,'r--','Label','R/A','LabelOrientation','horizontal');
+
+%% Bode Plot by FRD
+
+figure(2);
+bode(sys_frd);
+hold on
+xline(R/A,'r--','Label','R/A','LabelOrientation','horizontal');
+grid on
+
+%% Drawing Nyquist Plot manually
+
+figure(3);
+
+plot(real(H), imag(H), 'b', 'LineWidth', 1.5); 
+hold on;
+plot(real(H), -imag(H), 'b--', 'LineWidth', 1.5);   % mirror for -ω
+hold on
+plot(-1, 0, 'r+', 'MarkerSize', 10, 'LineWidth', 2); % critical point
+grid on; 
+axis equal;
+xlabel('Real Axis'); ylabel('Imaginary Axis');
+title('Nyquist Diagram');
+
+%% Drawing Nyquist Plot by using FRD
+
+figure(4);
+
+nyquist(sys_frd); % Nyquist Plot
+grid on;
+
+%% Drawing Nichols Chart manually
+
+figure(5);
+
+plot(phase, mag, 'b', 'LineWidth', 1.5);
+hold on
+plot(-180, 0, 'r+', 'MarkerSize', 12, 'LineWidth', 2);  % critical point
+xlabel('Open-Loop Phase (deg)');
+ylabel('Open-Loop Gain (dB)');
+title('Nichols Chart');
+grid on;
+xlim('auto');
+ylim('auto');
+% xlim([-270 -90]);
+% ylim([-40 20]);
+
+%% Drawing Nichols Chart by using FRD 
+
+figure(6);
+
+nichols(sys_frd);
+grid on
+
+%% Show Bode Plots
+figure(2)
+figure(1)
+toc

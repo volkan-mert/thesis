@@ -1,0 +1,38 @@
+clear;clc;close all
+
+%% Example : Draw Fig. 16 Nichols chart: open-loop frequency response q∕qc 
+% 2025, Rodrigues et al, CEAS Aeronautical Journal (2026), 
+% "Conditional integrator sliding mode control to reduce susceptibility 
+% to pilot‑induced oscillations"
+
+num_claw_7 = [5.21, -273.7855, -1425.456, -700.224];
+den_claw_7 = [1, 21.36, 545.6, 605.7, 0];
+Gs_claw_7 = tf(num_claw_7, den_claw_7);
+
+num_ldynac_7 = [-10.524, -16.8384, -0.6209, 0];
+den_ldynac_7 = [1, 2.35, -5.31, 0.184, -0.041];
+Gs_ldynac_7 = tf(num_ldynac_7, den_ldynac_7);
+
+Gs_ac_7 = Gs_claw_7*Gs_ldynac_7; % TF of the open-loop by q / q_c.
+
+pick_cursor_magnitude_olop = 2.0629; % omega_OLOP Magnitude in dB
+pick_cursor_phase_olop = -136.6216; % omega_OLOP in degrees
+
+figure(1);
+nichols(Gs_ac_7);
+opts = nicholsoptions;
+opts.PhaseMatching      = 'on';
+opts.PhaseMatchingFreq  = 1;        % rad/s
+opts.PhaseMatchingValue = -180;     % anchor phase at that frequency
+nicholsplot(Gs_ac_7, opts); 
+hold on
+xline(-180, '--'); % in degrees0
+yline(0, '--'); % in dBs
+hold on
+plot(pick_cursor_phase_olop, pick_cursor_magnitude_olop,'rp', 'MarkerSize', 15, 'MarkerFaceColor', 'r');
+hold on
+text(pick_cursor_phase_olop + 5, pick_cursor_magnitude_olop, '\omega_{OLOP} = 5.1', 'Color', 'red', 'FontWeight', 'bold', 'FontSize', 12);
+%
+grid on
+xlim([-300 -50]);
+ylim([-20 15]);

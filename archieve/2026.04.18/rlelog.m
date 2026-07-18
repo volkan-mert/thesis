@@ -1,0 +1,27 @@
+t_stop = 20;      % simulation stop time
+num_t_step = 1000;      % numbers of time step
+t = linspace(0, t_stop, num_t_step);      % time
+X_i_max = 1;
+R = 1;        % slew rate
+
+u = zeros(num_t_step,10);
+cnt = 1;
+for w = 0.1:0.1:2
+    u(:,cnt) = X_i_max*sin(w*t);        % input signal
+    cnt = cnt + 1;  % increment counter for the next frequency
+end
+
+inputData = [t', u];          % [time value] format for From Workspace
+assignin('base','myInput',inputData);
+% In the model, set From Workspace block Data = myInput
+out=sim('rle');
+% After sim finishes, read output variable from To Workspace, e.g.:
+outData = out.simout;           % if To Workspace used default name
+
+
+for k=1:(cnt-1)
+
+
+end
+
+
