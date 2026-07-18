@@ -22,28 +22,12 @@ mdl = "Mehra";            % model name (or full path)
 load_system(mdl);         % load model without opening GUI
 open_system(mdl);         % optional: open model window
 
-    % for k = 1:length(tauList)
-    % 
-    %     tau = tauList(k);
-    % 
-    %     for m = 1:length(KpList)   
-    % 
-    %         Kp = KpList(m);
-    % 
-    %         sprintf("--- Kp: %d, tau: %0.3f ---", Kp, tau)    
-    % 
-    %     end
-    % 
-    % end
-
-
 Kp = 2.8; % the trigger point is 2.7
 tau = 0.00;
 
 set_param(mdl,"StopTime","40");   % example: set stop time
 out = sim(mdl);           % run simulation, returns Simulink.SimulationOutput
 
-% inspect results: out.yout or out.get('logsout') depending on model logging
 % close_system(mdl,1);      % close 0: without saving, 1: with saving
 
 plot(out.theta.Data, out.thetadot.Data)
