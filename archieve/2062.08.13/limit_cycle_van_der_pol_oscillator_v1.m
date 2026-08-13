@@ -18,6 +18,7 @@ tspan = [0 60]; % for a 60 seconds run
 
 % Initial conditions:
 
+
 x0 = [0.5 0];   % x(0) = 0.5 and dx/dt(0) = 0
 
 %% Numerical simulation of the The Van der Pol Oscillator
@@ -72,16 +73,16 @@ fprintf('Describing function prediction:\n');
 fprintf('A = 2 \n');
 fprintf('w = 1 rad/s\n');
 
-%% Time response
+%% Time response of Van Der Pol Oscillator
 % Plot x(t) for the complete simulation.
 figure(Name='Time Response', NumberTitle="off")
 plot(t, x(:,1),'LineWidth', 1.5);     % plot states, x
 grid on;
 xlabel('Time (s)');
 ylabel('x(t)');
-title('Van der Pol Oscillator');
+title('Time Response','Van der Pol Oscillator');
 
-%% Phase portrait
+%% Phase portrait of Van Der Pol Oscillator for the Limit Cycle Analysis
 % The phase portrait shows dx/dt versus x.
 figure(Name='Phase Portrait', NumberTitle="off")
 
@@ -107,10 +108,10 @@ grid on;
 axis equal;
 xlabel('x');
 ylabel('dx/dt');
-title('Phase Portrait');
+title('Phase Portrait','Van Der Pol Oscillator');
 legend('Inside (A < 2): Transient-State Limit Cycle (Trajectory)', 'Outside (A > 2), Steady-State Limit Cycle, (~= Numerical Limit Cycle)', 'Onside (A = 2), Theoretical Limit Cycle, (DF Prediction)','Location','Best');
 
-%% Describing function
+%% Describing function Generation
 % The equations used in the describing-function analysis are:
 % G(s) = 1/(s^2-mu*s+1)
 % N(A,w) = j*mu*w*A^2/4
@@ -144,7 +145,7 @@ for k = 1:length(w0)
     M = -1./N;
 
     % Plot in the complex plane.
-    plot(real(M),imag(M),'--','LineWidth',1);
+    plot(real(M), imag(M), '--', 'LineWidth', 1, 'DisplayName', string(w0(k)));
 end
 
 % Mark the describing-function solution A = 2, w = 1 rad/s.
@@ -154,8 +155,10 @@ text(0.05, 1/mu + 0.5, 'A = 2, \omega = 1');
 grid on;
 xlabel('Real');
 ylabel('Imaginary');
-title('Van der Pol Oscillator Limit Cycle Detection Plot','(Slotine''s Book Fig. 5.24 Finding frequency-dependent DFs for different frequencies)');
-legend('G(j\omega)', '-1/N(A,\omega)');
+title('Nyquist Plot');
+txt1 = {'Van der Pol Oscillator Limit Cycle Detection for different \omega, frequencies','(Slotine''s Book Fig. 5.24 Finding frequency-dependent DFs for different frequencies)'};
+subtitle(txt1);
+legend('G(j\omega), Linear TF', '-1/N(A, \omega) at \omega_{1} = 0.5', '-1/N(A, \omega) at \omega_{2} = 0.8', '-1/N(A, \omega) at \omega_{3} = 1', '-1/N(A, \omega) at \omega_{4} = 1.5', '-1/N(A, \omega) at \omega_{5} = 2', 'Limit Cycle');
 
 %% Plot similar to Slotine's Book Fig. 5.25 Limjt cycle detection for frequency-dependent describing functions for different amplitudes
 % This plot shows G(jw)N(A,w) for several fixed values of A.
@@ -165,6 +168,12 @@ hold on;
 
 % Fixed amplitude values.
 A_values = [1 1.5 2 2.5 3];
+
+% result{k} will contain [real(L), imag(L)] for the kth amplitude.
+result = cell(length(A_values),1);
+
+% all_result columns will be: [A, w, real(L), imag(L)]
+all_result = [];
 
 for k = 1:length(A_values)
     % Select the current amplitude.
@@ -176,17 +185,52 @@ for k = 1:length(A_values)
     % Calculate G(jw)N(A,w).
     L = G.*N;
 
+    % Store [real(L), imag(L)] for every w at this A.
+    result{k} = [real(L(:)), imag(L(:))];
+
+    % Also store A and w so that each complex point can be identified.
+    all_result = [all_result; A*ones(length(w),1), w(:), result{k}];
+
     % Plot the result in the complex plane.
     plot(real(L), imag(L), 'LineWidth', 1.5);
 end
 
+% Find the calculated point closest to the limit-cycle point (-1,0).
+distance = sqrt((all_result(:,3) + 1).^2 + all_result(:,4).^2);
+[minimum_distance, index] = min(distance);
+
+A_limit = all_result(index,1);
+w_limit = all_result(index,2);
+real_limit = all_result(index,3);
+imag_limit = all_result(index,4);
+
+% Display the corresponding A and w values.
+fprintf('\nPoint closest to (-1,0):\n');
+fprintf('A = %.4f\n', A_limit);
+fprintf('w = %.4f rad/s\n', w_limit);
+fprintf('real(L) = %.6f\n', real_limit);
+fprintf('imag(L) = %.6f\n', imag_limit);
+fprintf('Distance from (-1,0) = %.6f\n\n', minimum_distance);
+
+% Optional table containing every calculated point.
+% Double-click result_table in the Workspace to inspect all A and w values.
+result_table = array2table(all_result, ...
+    'VariableNames', {'A','w','Real_L','Imag_L'});
+
 % Mark the critical point (-1,0).
 plot(-1,0, 'ko','MarkerFaceColor','k');
-text(-0.95, 0.05, '(-1,0)');
+text(-0.95, 0.05, '(-1,0): Limit Cycle');
+
+% Mark the closest calculated point and write its A and w values.
+plot(real_limit, imag_limit, 'ro', 'MarkerFaceColor','r');
+text(real_limit + 0.05, imag_limit - 0.05, ...
+    sprintf('A = %.2f, \omega = %.4f', A_limit, w_limit));
 
 grid on;
 xlabel('Real');
 ylabel('Imaginary');
-title('Van der Pol Oscillator Limit Cycle Detection Plot ','(Slotine''s Book Fig. 5.24 Finding frequency-dependent describing functions for different amplitudes)');
-legend('A=1','A=1.5','A=2','A=2.5','A=3','(-1,0)');
+title('Nyquist Plot'); 
+txt2={'Van der Pol Oscillator Limit Cycle Detection for different amplitudes','(Slotine''s Book Fig. 5.24 Finding frequency-dependent describing functions for different amplitudes)'};
+subtitle(txt2);
+legend('A = 1','A = 1.5','A = 2','A = 2.5','A = 3','(-1,0): Limit Cycle Crossing','Closest Calculated Point');
 
