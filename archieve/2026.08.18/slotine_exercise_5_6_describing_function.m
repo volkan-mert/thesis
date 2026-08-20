@@ -209,8 +209,7 @@ end
 
 minus_inv_N = -1./N;
 
-figure('Name','Exercise 5.6 - Describing Function', ...
-       'NumberTitle','off');
+figure('Name','Exercise 5.6 - Describing Function', 'NumberTitle','off');
 
 % Positive-frequency Nyquist branch.
 plot(real(Gjw),imag(Gjw),'LineWidth',2);
@@ -225,14 +224,16 @@ plot(minus_inv_N,zeros(size(minus_inv_N)),'--','LineWidth',2);
 % Important point of the linear element.
 plot(-5,0,'ko','MarkerFaceColor','k');
 
+% Important point of the linear element.
+plot(-5,0,'ko','MarkerFaceColor','k');
+
 if limit_cycle_exists
 
-    % At the limit cycle:
-    % -1/N(A) = -5.
+    % Limit cycle point
     plot(-5,0,'ro','MarkerFaceColor','r');
 
-    text(-5,0.35, ...
-        sprintf('A = %.3f, \\omega = 5 rad/s',A_limit));
+    % Show amplitude and frequency near the intersection point
+    text(-5 + 0.1, 0.35, sprintf('A = %.3f, w = %.2f rad/s',A_limit,w_limit));
 
 end
 
@@ -242,16 +243,11 @@ ylabel('Imaginary');
 title('Nyquist Plot');
 subtitle('G(j\omega) and -1/N(A)');
 
-legend('G(j\omega), \omega > 0', ...
-       'G(j\omega), \omega < 0', ...
-       '-1/N(A)', ...
-       'G(j5) = -5', ...
-       'Location','best');
+legend('G(j\omega), \omega > 0', 'G(j\omega), \omega < 0', '-1/N(A)', 'G(j5) = -5', 'Location','best');
 
 %% 9. Plot G(jw)N(A) for Different Amplitudes
 
-figure('Name','Exercise 5.6 - Limit Cycle Detection', ...
-       'NumberTitle','off');
+figure('Name','Exercise 5.6 - Limit Cycle Detection', 'NumberTitle','off');
 
 hold on;
 
@@ -288,13 +284,18 @@ for m = 1:length(A_values)
 
     plot(real(L),imag(L),'LineWidth',1.5);
 
-    legend_text{m} = sprintf('A = %.3f',A0);
+    legend_text{m} = sprintf('A = %.3f', A0);
 
 end
 
-% Critical point.
+% Critical point
 plot(-1,0,'ko','MarkerFaceColor','k');
 legend_text{end} = '(-1,0)';
+
+% Show limit cycle frequency near the critical point
+if limit_cycle_exists
+    text(-1 + 0.4, 0.1, sprintf('A = %.3f,\n w = %.2f rad/s',A_limit,w_limit));
+end
 
 grid on;
 xlabel('Real');

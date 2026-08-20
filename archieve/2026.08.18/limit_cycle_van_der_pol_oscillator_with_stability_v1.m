@@ -117,7 +117,7 @@ figure('Name','Phase Portrait', 'NumberTitle','off');
 
 % Plot the complete trajectory.
 
-plot(x(:,1),x(:,2), 'LineWidth',1);
+plot(x(:,1), x(:,2), 'LineWidth',1);
 
 hold on;
 
