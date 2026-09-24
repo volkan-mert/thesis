@@ -20,7 +20,8 @@ w_G = linspace(0.3,3.5,1000);
 %% 3. Rate Limiter Element parameters
 
 R  = 15;           % Rate limit, deg/s
-Ai = 13.68;        % Input amplitude, deg
+% Ai = 13.68;        % Input amplitude, deg
+Ai = Kp;            % Input amplitude, deg
 
 w_N = linspace(0.01, 10, 1001);   % Frequencies, rad/s
 
@@ -89,7 +90,9 @@ p2.PhaseMatchingFrequency = w_N(1);
 
 phase_first = rad2deg(angle(minus_inv_N(1)));
 
-p2.PhaseMatchingValue = phase_first - 360;
+phase_shift_deg = 360;
+
+p2.PhaseMatchingValue = phase_first - phase_shift_deg;
 
 %% 9. Figure settings
 

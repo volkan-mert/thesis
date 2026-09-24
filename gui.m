@@ -1,7 +1,7 @@
 function aircraft_limit_cycle_gui()
 %% =========================================================================
 %  INTERACTIVE LONGITUDINAL DYNAMICS & LIMIT CYCLE SIMULATOR
-%  Includes Real-Time Simulation, DDE Sweep, and Adaptive Nichols Chart
+%  Includes Real-Time Simulation, DDE Sweep, and Live Nichols Chart
 % =========================================================================
 
     % --- 1. SYSTEM CONSTANTS & AIRCRAFT DYNAMICS ---
@@ -34,10 +34,8 @@ function aircraft_limit_cycle_gui()
     rdot_buf     = nan(1, buf_len);
     e_act_buf    = nan(1, buf_len); % Buffer for describing function input amplitude (Ai)
 
-    % Precompute frequency arrays for Describing Function & G(jw)
-    w_G = linspace(0.3, 3.5, 1000);
-    s_G = 1j * w_G;
-    w_N = linspace(0.01, 10, 1001);
+    % Nichols Chart Caching States (prevents lag by only redrawing when Ai changes)
+    last_Ai = -1; last_Kp = -1; last_Rmax = -1;
 
     % --- 3. GUI FIGURE & CONTROL PANEL CREATION ---
     fig = figure('Name', 'Pilot-in-the-Loop Limit Cycle Simulator', ...
@@ -84,21 +82,12 @@ function aircraft_limit_cycle_gui()
     title(ax_freq, 'Pilot Gain vs. Limit Cycle Frequency', 'FontSize', 11);
     text(ax_freq, 0.5, 0.5, 'Click "Compute Sweep" to generate', 'HorizontalAlignment', 'center', 'Units', 'normalized', 'Color', [0.5 0.5 0.5]);
 
-    % NEW: Real-Time Nichols Chart
+    % Target Axes for Nichols Chart
     ax_nichols = axes('Parent', fig, 'Position', [0.69, 0.24, 0.27, 0.28]);
-    grid(ax_nichols, 'on'); hold(ax_nichols, 'on');
-    h_nichols_G = plot(ax_nichols, 0, 0, 'b', 'LineWidth', 1.5, 'DisplayName', 'G(j\omega)');
-    h_nichols_N = plot(ax_nichols, 0, 0, 'r', 'LineWidth', 1.5, 'DisplayName', '-1/N(A_i,\omega)');
-    yline(ax_nichols, 0, '--k', 'DisplayName', '0 dB');
-    xlabel(ax_nichols, 'Open-Loop Phase (deg)', 'FontWeight', 'bold');
-    ylabel(ax_nichols, 'Open-Loop Gain (dB)', 'FontWeight', 'bold');
-    title(ax_nichols, 'Nichols Chart of G(j\omega) and -1/N(A_i,\omega)', 'FontSize', 11);
-    legend(ax_nichols, 'Location', 'northeast');
 
     % --- 4. INTERACTIVE CONTROLS (PANEL AT BOTTOM) ---
     panel = uipanel('Parent', fig, 'Position', [0.02, 0.02, 0.96, 0.14], 'BackgroundColor', 'w');
 
-    % Sliders
     uicontrol('Parent', panel, 'Style', 'text', 'Position', [20, 60, 200, 20], 'String', 'Actuator Saturation S (deg/s):', 'HorizontalAlignment', 'left', 'FontWeight', 'bold', 'BackgroundColor', 'w');
     lbl_rmax = uicontrol('Parent', panel, 'Style', 'text', 'Position', [230, 60, 60, 20], 'String', sprintf('%.1f', R_max), 'HorizontalAlignment', 'left', 'ForegroundColor', 'b', 'BackgroundColor', 'w');
     sld_rmax = uicontrol('Parent', panel, 'Style', 'slider', 'Position', [20, 40, 250, 22], 'Min', 5, 'Max', 30, 'Value', R_max, 'Callback', @update_rmax);
@@ -111,7 +100,6 @@ function aircraft_limit_cycle_gui()
     lbl_tau = uicontrol('Parent', panel, 'Style', 'text', 'Position', [830, 60, 60, 20], 'String', sprintf('%.2f', tau), 'HorizontalAlignment', 'left', 'ForegroundColor', 'b', 'BackgroundColor', 'w');
     sld_tau = uicontrol('Parent', panel, 'Style', 'slider', 'Position', [620, 40, 250, 22], 'Min', 0.0, 'Max', 0.2, 'Value', tau, 'Callback', @update_tau);
 
-    % Buttons
     btn_pause   = uicontrol('Parent', panel, 'Style', 'pushbutton', 'Position', [20, 5, 100, 30], 'String', 'Pause', 'FontWeight', 'bold', 'Callback', @toggle_pause);
     btn_perturb = uicontrol('Parent', panel, 'Style', 'pushbutton', 'Position', [130, 5, 180, 30], 'String', 'Toggle Command (\theta_c)', 'FontWeight', 'bold', 'Callback', @toggle_command);
     btn_reset   = uicontrol('Parent', panel, 'Style', 'pushbutton', 'Position', [320, 5, 100, 30], 'String', 'Reset State', 'FontWeight', 'bold', 'Callback', @reset_sim);
@@ -206,64 +194,92 @@ function aircraft_limit_cycle_gui()
             xlim(ax_rdot, [max(0, sim_time - t_window), max(t_window, sim_time)]);
 
             % -------------------------------------------------------------
-            % Vectorized Dynamic Nichols Chart Update
+            % Live Nichols Chart with User Script Embedded
             % -------------------------------------------------------------
             valid_e_act = e_act_buf(~isnan(e_act_buf));
             if ~isempty(valid_e_act)
-                Ai = max(abs(valid_e_act));
+                Ai_val = max(abs(valid_e_act));
             else
-                Ai = K_p; 
+                Ai_val = K_p; 
             end
-            if Ai < 0.1, Ai = 0.1; end 
+            if Ai_val < 0.1, Ai_val = 0.1; end 
             
-            % 1. Linear system G(jw)
-            G_jw = K_p * 0.537 * (s_G + 0.82) ./ (s_G .* (s_G.^2 + 1.42 * s_G + 2.3^2));
-            mag_G_dB = 20 * log10(abs(G_jw));
-            phase_G_deg = unwrap(angle(G_jw)) * 180 / pi;
-            if phase_G_deg(1) > 0, phase_G_deg = phase_G_deg - 360; end
-
-            % 2. Rate Limiter Describing Function -1/N(Ai, w)
-            w_onset = R_max / Ai;
-            alpha = w_N / w_onset;
-            M = ones(size(w_N));
-            phi = zeros(size(w_N));
-            
-            idx2 = (alpha > 1) & (alpha < 1.862);
-            a2 = alpha(idx2);
-            M(idx2) = 0.2908*a2.^3 - 1.4396*a2.^2 + 1.9232*a2 + 0.223;
-            phi(idx2) = 0.528*a2.^3 - 2.6213*a2.^2 + 3.5056*a2 - 1.4171;
-            
-            idx3 = alpha >= 1.862;
-            varpi = w_onset ./ w_N(idx3);
-            M(idx3) = (4/pi).*varpi;
-            phi(idx3) = -acos((pi/2).*varpi);
-            
-            N_val = M .* exp(1j * phi);
-            minus_inv_N = -1 ./ N_val;
-            
-            mag_N_dB = 20 * log10(abs(minus_inv_N));
-            phase_N_deg = rad2deg(angle(minus_inv_N));
-            if phase_N_deg(1) > 0
-                phase_N_deg = phase_N_deg - 360;
-            end
-            
-            % Update Nichols plots
-            set(h_nichols_G, 'XData', phase_G_deg, 'YData', mag_G_dB);
-            set(h_nichols_N, 'XData', phase_N_deg, 'YData', mag_N_dB);
-            
-            % Adaptive Scaling for Nichols Chart (Filters the extreme negative dB tail of G)
-            valid_idx_G = mag_G_dB > -25; 
-            if any(valid_idx_G)
-                p_min = min([phase_G_deg(valid_idx_G), phase_N_deg]);
-                p_max = max([phase_G_deg(valid_idx_G), phase_N_deg]);
-                m_min = min([mag_G_dB(valid_idx_G), mag_N_dB, -5]);
-                m_max = max([mag_G_dB(valid_idx_G), mag_N_dB, 5]);
+            % Update Nichols Chart only if parameters shift significantly (prevents GUI lag)
+            if abs(Ai_val - last_Ai) > 0.05 || K_p ~= last_Kp || R_max ~= last_Rmax
                 
-                p_pad = max(10, (p_max - p_min) * 0.1);
-                m_pad = max(5, (m_max - m_min) * 0.1);
+                %% 1. Linear system G(s)
+                Kp_df = K_p;       % Pilot gain (from GUI)
+                M_del_e = 0.537;   % Input signal entering the rate limiter
+                omega_n = 2.3;     % Natural frequency
+                zeta_sp = 1.42 / omega_n / 2;   % Damping ratio
+                num = Kp_df*M_del_e*[1 0.82];
+                den = [1 1.42 omega_n^2 0];
+                Gs = tf(num,den);
                 
-                xlim(ax_nichols, [p_min - p_pad, p_max + p_pad]);
-                ylim(ax_nichols, [m_min - m_pad, m_max + m_pad]);
+                %% 2. Frequency range for G(jw)
+                w_G = linspace(0.3,3.5,1000);
+                
+                %% 3. Rate Limiter Element parameters
+                R_df  = R_max;     % Rate limit, deg/s (from GUI)
+                Ai = Ai_val;       % Input amplitude, deg (Dynamic from buffer)
+                w_N = linspace(0.01, 10, 1001);   % Frequencies, rad/s
+                w_onset = R_df / Ai;
+                
+                %% 4. Describing function N(Ai,w)
+                N = zeros(size(w_N));
+                for k = 1:length(w_N)
+                    alpha = w_N(k) / w_onset;
+                    % Region I
+                    if alpha <= 1
+                        M = 1;
+                        phi = 0;
+                    % Region II
+                    elseif alpha < 1.862
+                        M = 0.2908*alpha^3 - 1.4396*alpha^2 + 1.9232*alpha + 0.223;
+                        phi = 0.528*alpha^3 - 2.6213*alpha^2 + 3.5056*alpha - 1.4171;
+                    % Region III
+                    else
+                        varpi = w_onset / w_N(k);
+                        M = (4/pi)*varpi;
+                        phi = -acos((pi/2)*varpi);
+                    end
+                    N(k) = M*exp(1j*phi);
+                end
+                
+                %% 5. Calculate -1/N(Ai,w)
+                minus_inv_N = -1 ./ N;
+                
+                %% 6. Convert -1/N to an FRD model
+                response = reshape(minus_inv_N,1,1,[]);
+                sys_N = frd(response,w_N);
+                
+                %% 7. Nichols Chart
+                cla(ax_nichols);
+                
+                % Force colors to match the user's screenshot layout
+                ax_nichols.ColorOrder = [0 0 1; 1 0 0]; % Blue for G, Red for sys_N
+                
+                p1 = nicholsplot(ax_nichols, Gs, w_G);
+                hold(ax_nichols, 'on');
+                p2 = nicholsplot(ax_nichols, sys_N);
+                
+                %% 8. Shift -1/N from +180 deg to -180 deg
+                p2.PhaseMatchingEnabled = 'on';
+                p2.PhaseMatchingFrequency = w_N(1);
+                phase_first = rad2deg(angle(minus_inv_N(1)));
+                p2.PhaseMatchingValue = phase_first - 360;
+                
+                %% 9. Figure settings
+                grid(ax_nichols, 'on');
+                % Limits removed to allow adaptive boundary framing as requested
+                yline(ax_nichols, 0,'--k','DisplayName','0 dB');
+                title(ax_nichols, 'Nichols Chart of G(j\omega) and -1/N(A_i,\omega)', 'FontSize', 11);
+                legend(ax_nichols, 'G(j\omega)','-1/N(A_i,\omega)','0 dB', 'Location', 'northeast');
+                
+                % Cache state
+                last_Ai = Ai_val;
+                last_Kp = K_p;
+                last_Rmax = R_max;
             end
         end
         drawnow limitrate;
@@ -309,7 +325,6 @@ function aircraft_limit_cycle_gui()
     end
 
     function run_sweep(~, ~)
-        % Pause real-time simulation while DDE sweep runs
         was_running = is_running;
         is_running = false; 
         
@@ -319,7 +334,7 @@ function aircraft_limit_cycle_gui()
         Kp_vec  = 1:0.5:15;
         tspan_sw = [0 60];
         x0_sw    = [0; 0; 0; 0];
-        thetac_sw = 1; % Lock step command positive for stable mapping
+        thetac_sw = 1; 
         
         cla(ax_amp); cla(ax_freq);
         colors = ['b', 'r', 'g', 'm'];
@@ -372,8 +387,6 @@ function aircraft_limit_cycle_gui()
                         amp_vec(j_kp) = 0; freq_vec(j_kp) = 0;
                     else
                         amp_vec(j_kp) = amplitude;
-                        
-                        % Calculate Limit Cycle Frequency via zero crossings
                         theta_cen = theta_ss - mean(theta_ss);
                         zc = find(theta_cen(1:end-1) .* theta_cen(2:end) < 0);
                         if length(zc) >= 2
@@ -394,7 +407,7 @@ function aircraft_limit_cycle_gui()
         end
         legend(ax_amp, 'Location', 'northwest');
         legend(ax_freq, 'Location', 'northeast');
-        is_running = was_running; % Resume real-time loop state
+        is_running = was_running; 
     end
 
     function close_callback(~, ~)
