@@ -1,47 +1,65 @@
-function ashkenasfig8gui()
+function limitcycleanalysisbynidf()
     % Create the main UI Figure
-    fig = uifigure('Name', 'The Negative Inverse Describing Function Analysis of Nichols Chart', 'Position', [100, 100, 1100, 750]);
+    fig = uifigure('Name', 'The Limit Cycle Analysis by Using the Negative Inverse Describing Function on the Nichols Chart', 'Position', [100, 100, 1100, 750]);
     
     % Create a main grid layout to separate the left pane (controls/info) and the right pane (plot)
     mainGrid = uigridlayout(fig, [1 2]);
-    mainGrid.ColumnWidth = {320, '1x'}; % 320px for the left panel container, rest for plot
+    mainGrid.ColumnWidth = {360, '1x'}; 
     
     % --- Left Container (Holds Controls, Image, and Definitions) ---
     leftContainer = uigridlayout(mainGrid, [3 1]);
-    leftContainer.RowHeight = {'fit', 120, '1x'}; % Controls fit to content, Image gets 120px, Definitions take the rest
+    leftContainer.RowHeight = {'fit', 140, '1x'}; 
     leftContainer.Padding = [0 0 0 0];
     
     % 1. Control Parameters Panel
     leftPanel = uipanel(leftContainer, 'Title', 'Control Parameters');
-    controlGrid = uigridlayout(leftPanel, [10 2]); % Increased to 10 rows for Auto Zoom
+    controlGrid = uigridlayout(leftPanel, [10 2]); 
     controlGrid.RowHeight = repmat({'fit'}, 1, 10);
     controlGrid.ColumnWidth = {'fit', '1x'};
     controlGrid.Padding = [10 10 10 10];
     
-    % Helper function to quickly create labels and numeric fields
-    function ef = createNumericField(row, labelText, defaultVal)
-        lbl = uilabel(controlGrid, 'Text', labelText, 'HorizontalAlignment', 'right');
+    % Helper function to quickly create labels (with LaTeX support) and numeric fields
+    function ef = createNumericField(row, latexText, htmlText, defaultVal)
+        lbl = uilabel(controlGrid, 'HorizontalAlignment', 'right');
         lbl.Layout.Row = row;
         lbl.Layout.Column = 1;
+        
+        % If modern MATLAB version supports LaTeX in labels, use it
+        if isprop(lbl, 'Interpreter')
+            lbl.Interpreter = 'latex';
+            lbl.Text = latexText;
+            lbl.FontSize = 14;
+        else
+            % Fallback to HTML formatting for older MATLAB versions
+            lbl.Text = htmlText;
+        end
         
         ef = uieditfield(controlGrid, 'numeric', 'Value', defaultVal);
         ef.Layout.Row = row;
         ef.Layout.Column = 2;
     end
     
-    % Define input fields with default values
-    editOmegaSp    = createNumericField(1, 'omega_sp:', 2.3);
-    editInvTtheta2 = createNumericField(2, '1/T_theta2:', 0.82);
-    editZetaSp     = createNumericField(3, 'zeta_sp:', 0.3087);
-    editKp         = createNumericField(4, 'Kp:', 13.68);
-    editMdele      = createNumericField(5, 'M_del_e:', 0.537);
-    editR          = createNumericField(6, 'Rate Limit (R):', 15);
-    editPhase      = createNumericField(7, 'Phase Shift (deg):', -360);
+    % Define input fields with exact defaults and LaTeX labels
+    editOmegaSp    = createNumericField(1, '$\omega_{sp}$:', '<html>&omega;<sub>sp</sub>:</html>', 2.3);
+    editInvTtheta2 = createNumericField(2, '$1/T_{\theta_2}$:', '<html>1/T<sub>&theta;<sub>2</sub></sub>:</html>', 0.82);
+    editZetaSp     = createNumericField(3, '$\zeta_{sp}$:', '<html>&zeta;<sub>sp</sub>:</html>', 0.3087);
+    editKp         = createNumericField(4, '$K_p$:', '<html>K<sub>p</sub>:</html>', 14); 
+    editMdele      = createNumericField(5, '$M_{\delta_e}$:', '<html>M<sub>&delta;<sub>e</sub></sub>:</html>', 0.537);
+    editR          = createNumericField(6, 'Rate Limit ($R$):', '<html>Rate Limit (R):</html>', 15);
+    editPhase      = createNumericField(7, 'Phase Shift (deg):', 'Phase Shift (deg):', -360);
     
     % Auto Zoom Checkbox
-    lblZoom = uilabel(controlGrid, 'Text', 'Auto Zoom:', 'HorizontalAlignment', 'right');
+    lblZoom = uilabel(controlGrid, 'HorizontalAlignment', 'right');
     lblZoom.Layout.Row = 8;
     lblZoom.Layout.Column = 1;
+    if isprop(lblZoom, 'Interpreter')
+        lblZoom.Interpreter = 'latex';
+        lblZoom.Text = 'Auto Zoom:';
+        lblZoom.FontSize = 14;
+    else
+        lblZoom.Text = 'Auto Zoom:';
+    end
+    
     chkAutoZoom = uicheckbox(controlGrid, 'Text', '(Tight Fit to Curves)');
     chkAutoZoom.Value = 1; % On by default
     chkAutoZoom.Layout.Row = 8;
@@ -56,39 +74,57 @@ function ashkenasfig8gui()
     closeBtn = uibutton(controlGrid, 'Text', 'Stop & Close');
     closeBtn.Layout.Row = 10;
     closeBtn.Layout.Column = [1 2];
-    closeBtn.BackgroundColor = [0.85 0.3 0.3]; % Red background for visibility
+    closeBtn.BackgroundColor = [0.85 0.3 0.3]; 
     closeBtn.FontColor = 'white';
     closeBtn.ButtonPushedFcn = @(src, event) delete(fig);
     
-    % 2. Transfer Function Image Panel
-    imgPanel = uipanel(leftContainer, 'Title', 'Transfer Function Formula');
-    imgGrid = uigridlayout(imgPanel, [1 1]);
-    tfImg = uiimage(imgGrid);
-    tfImg.ImageSource = 'C:\Users\t0900\Documents\MATLAB\Volkan\tf.jpg'; 
+    % 2. Transfer Function LaTeX Panel
+    formulaPanel = uipanel(leftContainer, 'Title', 'Transfer Function Formula');
+    formulaGrid = uigridlayout(formulaPanel, [1 1]);
     
-    % 3. Parameter Definitions Panel
+    tfAxes = uiaxes(formulaGrid);
+    tfAxes.XColor = 'none';
+    tfAxes.YColor = 'none';
+    tfAxes.Color = 'none';
+    tfAxes.Toolbar.Visible = 'off';
+    tfAxes.Interactions = [];
+    xlim(tfAxes, [0 1]);
+    ylim(tfAxes, [0 1]);
+    
+    formulaStr = '$$\frac{\theta}{\theta_c} = Y_p(s) \frac{\theta}{\delta_e}(s) = K_p \frac{1}{s} \frac{M_{\delta_e} \left(s + \frac{1}{T_{\theta_2}}\right)}{(s^2 + 2\zeta_{sp}\omega_{sp}s + \omega_{sp}^2)}$$';
+    text(tfAxes, 0.5, 0.5, formulaStr, 'Interpreter', 'latex', 'HorizontalAlignment', 'center', 'FontSize', 15);
+    
+    % 3. Parameter Definitions LaTeX Panel
     defPanel = uipanel(leftContainer, 'Title', 'Parameter Definitions');
     defGrid = uigridlayout(defPanel, [1 1]);
     
-    % Text array matching the specified parameter definitions exactly
+    defAxes = uiaxes(defGrid);
+    defAxes.XColor = 'none';
+    defAxes.YColor = 'none';
+    defAxes.Color = 'none';
+    defAxes.Toolbar.Visible = 'off';
+    defAxes.Interactions = [];
+    xlim(defAxes, [0 1]);
+    ylim(defAxes, [0 1]);
+    
     defText = {
-        'Kp : pilot gain';
-        'R : slew rate of the rate limiting element';
-        'M_del_e : input signal of the rate limiting element';
-        'omega_sp : natural frequency';
-        'T_theta2 : Period (sec)';
-        'zeta_sp : Damping Ratio';
-        'theta : pitch angle';
-        'theta_c : pitch angle commanded';
-        'delta_e : elevator deflection'
+        '$K_p$ : Pilot gain',
+        '$R$ : Slew rate of the rate limiting element',
+        '$M_{\delta_e}$ : Input signal of the rate limiting element',
+        '$\omega_{sp}$ : Natural frequency',
+        '$T_{\theta_2}$ : Period (sec)',
+        '$\zeta_{sp}$ : Damping Ratio',
+        '$\theta$ : Pitch angle',
+        '$\theta_c$ : Pitch angle commanded',
+        '$\delta_e$ : Elevator deflection'
     };
     
-    defLabel = uilabel(defGrid, 'Text', defText);
-    defLabel.VerticalAlignment = 'top';
-    defLabel.WordWrap = 'on';
+    text(defAxes, 0.02, 0.95, defText, 'Interpreter', 'latex', 'FontSize', 12, 'VerticalAlignment', 'top');
     
-    % --- Right Panel: UIAxes ---
-    ax = uiaxes(mainGrid);
+    % --- Right Panel: UIAxes Container ---
+    % Create a dedicated grid cell to hold the dynamic axes
+    plotGrid = uigridlayout(mainGrid, [1 1]);
+    plotGrid.Padding = [0 0 0 0];
     
     % Pack handles into a struct to pass to the update function
     appData.OmegaSp = editOmegaSp;
@@ -99,7 +135,7 @@ function ashkenasfig8gui()
     appData.R = editR;
     appData.Phase = editPhase;
     appData.AutoZoom = chkAutoZoom;
-    appData.Axes = ax;
+    appData.PlotGrid = plotGrid; % Pass the container instead of the axes
     
     % Assign callback function for real-time updates and button presses
     updateFn = @(src, event) updatePlot(appData);
@@ -130,9 +166,12 @@ function updatePlot(appData)
     phaseShift   = appData.Phase.Value;
     autoZoom     = appData.AutoZoom.Value;
     
-    % Clear the axes to prevent overlapping plots
-    cla(appData.Axes);
-    legend(appData.Axes, 'off');
+    % --- CRITICAL FIX: DESTROY AND RECREATE AXES ---
+    % The Control System Toolbox attaches hidden asynchronous listeners to the axes.
+    % Clearing the plot leaves these ghosts behind, which crash on the next 'drawnow'.
+    % The safest workaround is to completely delete the old axes and generate a fresh one.
+    delete(appData.PlotGrid.Children);
+    ax = uiaxes(appData.PlotGrid);
     
     % 2. Linear system G(s) constructed dynamically from formulas
     num = Kp * M_del_e * [1, inv_T_theta2]; 
@@ -171,17 +210,18 @@ function updatePlot(appData)
     sys_N = frd(response, w_N);
     
     % 7. Nichols Chart Plotting
-    hold(appData.Axes, 'on');
+    hold(ax, 'on');
     
     % Extract current color order so dummy legend lines match perfectly
-    cOrder = colororder(appData.Axes); 
+    cOrder = colororder(ax); 
     
     % Create options object to enable the Nichols grid
     opt = nicholsoptions;
     opt.Grid = 'on';
     
-    p1 = nicholsplot(appData.Axes, Gs, w_G, opt);
-    p2 = nicholsplot(appData.Axes, sys_N, opt);
+    % Plot systems
+    p1 = nicholsplot(ax, Gs, w_G, opt);
+    p2 = nicholsplot(ax, sys_N, opt);
     
     % 8. Apply Phase Shift dynamically
     p2.PhaseMatchingEnabled = 'on';
@@ -189,11 +229,11 @@ function updatePlot(appData)
     phase_first = rad2deg(angle(minus_inv_N(1)));
     p2.PhaseMatchingValue = phase_first + phaseShift;
     
-    % --- CRITICAL FIX: FORCE REDRAW ---
+    % Safely execute redraw now that the axes are pristine
     drawnow; 
     
     % Re-assert hold state just to ensure the axes remains stable
-    hold(appData.Axes, 'on');
+    hold(ax, 'on');
     
     % --- AUTO ZOOM LOGIC ---
     if autoZoom
@@ -218,24 +258,24 @@ function updatePlot(appData)
         dm = max(5, (max_m - min_m) * 0.15);
         
         % Apply tightly zoomed limits
-        xlim(appData.Axes, [min_p - dp, max_p + dp]);
-        ylim(appData.Axes, [min_m - dm, max_m + dm]);
+        xlim(ax, [min_p - dp, max_p + dp]);
+        ylim(ax, [min_m - dm, max_m + dm]);
     else
         % Let MATLAB fall back to standard wide Nichols Chart limits
-        xlim(appData.Axes, 'auto');
-        ylim(appData.Axes, 'auto');
+        xlim(ax, 'auto');
+        ylim(ax, 'auto');
     end
 
     % Add and capture 0 dB reference line handle
-    h_yline = yline(appData.Axes, 0, '--', 'Color', [0.4 0.4 0.4]); 
+    h_yline = yline(ax, 0, '--', 'Color', [0.4 0.4 0.4]); 
     
     % Update the Title
-    title(appData.Axes, 'The Nichols Chart of G(j\omega) and -1/N(A_{i},\omega) of Figure 8 of Ashkenas 1964');
+    title(ax, 'The Limit Cycle Analysis by Using The Nichols Chart of G(j\omega) and -1/N(A_{i},\omega) of Figure 8 of Ashkenas 1964');
     
     % --- SAFE LEGEND IMPLEMENTATION ---
-    h1 = plot(appData.Axes, NaN, NaN, '-', 'Color', cOrder(1, :), 'LineWidth', 1.5);
-    h2 = plot(appData.Axes, NaN, NaN, '-', 'Color', cOrder(2, :), 'LineWidth', 1.5);
-    legend(appData.Axes, [h1, h2, h_yline], {'G(j\omega)', '-1/N(A_i,\omega)', '0 dB'}, 'Location', 'northeast');
+    h1 = plot(ax, NaN, NaN, '-', 'Color', cOrder(1, :), 'LineWidth', 1.5);
+    h2 = plot(ax, NaN, NaN, '-', 'Color', cOrder(2, :), 'LineWidth', 1.5);
+    legend(ax, [h1, h2, h_yline], {'G(j\omega)', '-1/N(A_i,\omega)', '0 dB'}, 'Location', 'northeast');
     
-    hold(appData.Axes, 'off');
+    hold(ax, 'off');
 end
