@@ -1,4 +1,4 @@
-function PIO_LimitCycleApp()
+function LimitCyclebyPilotGainandDelay_GUI()
     % Global flag to handle Ctrl+C / Stop behavior
     stopRequested = false;
 

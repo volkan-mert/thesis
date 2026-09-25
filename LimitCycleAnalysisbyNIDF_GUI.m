@@ -1,4 +1,4 @@
-function limitcycleanalysisbynidf()
+function LimitCycleAnalysisbyNIDF_GUI()
     % Create the main UI Figure
     fig = uifigure('Name', 'The Limit Cycle Analysis by Using the Negative Inverse Describing Function on the Nichols Chart', 'Position', [100, 100, 1100, 750]);
     
