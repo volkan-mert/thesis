@@ -1,24 +1,26 @@
 function LimitCyclebyPilotGainandDelay_GUI()
     % Global flag to handle Ctrl+C / Stop behavior
     stopRequested = false;
-
     % Create the main UI Figure and bind the close event to the stop function
     fig = uifigure('Name', 'PIO Limit Cycle & Phase Portrait Analysis (Mehra''s 1998 Paper)', ...
-                   'Position', [100, 100, 1000, 800], ...
+                   'Position', [100, 100, 1080, 930], ...
                    'CloseRequestFcn', @(src, event) stopSim());
     
     % Create a grid layout to separate inputs (left) from the plots (right)
     gl = uigridlayout(fig, [1 2]);
-    gl.ColumnWidth = {340, '1x'}; 
+    gl.ColumnWidth = {450, '1x'}; 
     
     % --- Left Panel: Input Parameters ---
     inputPanel = uipanel(gl, 'Title', 'Simulation Parameters');
     
-    inputGrid = uigridlayout(inputPanel, [15 2]);
-    inputGrid.RowHeight = repmat({30}, 1, 15);
+    % Expanded to 18 rows to fit the new title
+    inputGrid = uigridlayout(inputPanel, [18 2]);
+    inputGrid.RowHeight = repmat({30}, 1, 18);
     inputGrid.RowHeight{7} = 'fit'; 
-    inputGrid.RowHeight{8} = 80;    
-    inputGrid.RowHeight{15} = 40;   
+    inputGrid.RowHeight{9} = 60;    % SAT limit equation
+    inputGrid.RowHeight{10} = 110;  % State-space f equation
+    inputGrid.RowHeight{11} = 60;   % State-space y equation
+    inputGrid.RowHeight{18} = 40;   % Run/Stop Buttons
     inputGrid.ColumnWidth = {'1x', '1x'};
     
     % Helper functions for UI fields 
@@ -28,19 +30,17 @@ function LimitCyclebyPilotGainandDelay_GUI()
         field = uieditfield(parent, 'numeric', 'Value', defaultVal);
         field.Layout.Row = row; field.Layout.Column = 2;
     end
-
     function field = createTxtField(parent, row, labelText, defaultVal)
         lbl = uilabel(parent, 'Interpreter', 'latex', 'Text', labelText, 'FontSize', 14);
         lbl.Layout.Row = row; lbl.Layout.Column = 1;
         field = uieditfield(parent, 'text', 'Value', defaultVal);
         field.Layout.Row = row; field.Layout.Column = 2;
     end
-
+    
     % Define parameter input fields using inline LaTeX
     lbl_defaults = uilabel(inputGrid, 'Text', '--- System Defaults ---', 'FontWeight', 'bold');
     lbl_defaults.Layout.Row = 1; 
     lbl_defaults.Layout.Column = [1 2];
-
     f_K      = createNumField(inputGrid, 2, 'Gain ($K$):', 20);
     f_S      = createNumField(inputGrid, 3, 'Rate Limit Max ($S$):', 15);
     f_R      = createNumField(inputGrid, 4, 'Rate Limit Min ($R$):', -15);
@@ -53,30 +53,54 @@ function LimitCyclebyPilotGainandDelay_GUI()
     lbl_x0_desc.Layout.Row = 7;
     lbl_x0_desc.Layout.Column = [1 2];
     
+    % --- NEW: Section Title ---
+    lbl_ss_title = uilabel(inputGrid, 'Text', '--- State-Space Representation ---', 'FontWeight', 'bold');
+    lbl_ss_title.Layout.Row = 8;
+    lbl_ss_title.Layout.Column = [1 2];
+
     % LaTeX Equation for the Saturation / Rate Limiter function
     eq_text = ['$$\dot{y} = \mathrm{SAT}(Ke) = \left\{ \begin{array}{ll} ' ...
                'S & \mathrm{if\ } Ke \ge S \\ ' ...
                'Ke & \mathrm{if\ } R < Ke < S \\ ' ...
                'R & \mathrm{if\ } Ke \le R \end{array} \right.$$'];
-    lbl_eq = uilabel(inputGrid, 'Interpreter', 'latex', 'FontSize', 14, 'Text', eq_text);
-    lbl_eq.Layout.Row = 8;
+    lbl_eq = uilabel(inputGrid, 'Interpreter', 'latex', 'FontSize', 13, 'Text', eq_text);
+    lbl_eq.Layout.Row = 9;
     lbl_eq.Layout.Column = [1 2];
     
-    lbl_sweep = uilabel(inputGrid, 'Text', '--- Sweep Parameters ---', 'FontWeight', 'bold');
-    lbl_sweep.Layout.Row = 9;
-    lbl_sweep.Layout.Column = [1 2];
+    % Compact Nonlinear State-Space Form
+    % State Vector Derivative
+    eq_ss_f = ['$$\dot{\mathbf{x}} = \mathbf{f}(\mathbf{x}, \theta_c) = ' ...
+               '\left[ \begin{array}{c} ' ...
+               '\mathrm{SAT}(K[K_p(\theta_c - 6.02372x_2 - 7.346x_3) - x_1]) \\ ' ...
+               'x_3 \\ ' ...
+               'x_4 \\ ' ...
+               'x_1 - 5.29x_3 - 1.42x_4 ' ...
+               '\end{array} \right]$$'];
+    lbl_ss_f = uilabel(inputGrid, 'Interpreter', 'latex', 'FontSize', 12, 'Text', eq_ss_f);
+    lbl_ss_f.Layout.Row = 10;
+    lbl_ss_f.Layout.Column = [1 2];
 
-    f_Kp     = createTxtField(inputGrid, 10, 'Pilot Gains ($K_p$):', '1:0.5:15');
-    f_tau    = createTxtField(inputGrid, 11, 'Delays ($\tau$):', '0, 0.03, 0.06, 0.09');
-    f_tspan  = createTxtField(inputGrid, 12, 'Time Span ($t_{span}$):', '0, 60');
+    % Output Vector
+    eq_ss_y = ['$$\mathbf{y} = \left[ \begin{array}{c} \theta \\ \dot{\theta} \end{array} \right] = ' ...
+               '\left[ \begin{array}{cccc} 0 & 6.02372 & 7.346 & 0 \\ 0 & 0 & 6.02372 & 7.346 \end{array} \right] \mathbf{x}$$'];
+    lbl_ss_y = uilabel(inputGrid, 'Interpreter', 'latex', 'FontSize', 12, 'Text', eq_ss_y);
+    lbl_ss_y.Layout.Row = 11;
+    lbl_ss_y.Layout.Column = [1 2];
+    
+    lbl_sweep = uilabel(inputGrid, 'Text', '--- Sweep Parameters ---', 'FontWeight', 'bold');
+    lbl_sweep.Layout.Row = 12;
+    lbl_sweep.Layout.Column = [1 2];
+    f_Kp     = createTxtField(inputGrid, 13, 'Pilot Gains ($K_p$):', '1:0.5:15');
+    f_tau    = createTxtField(inputGrid, 14, 'Delays ($\tau$):', '0, 0.03, 0.06, 0.09');
+    f_tspan  = createTxtField(inputGrid, 15, 'Time Span ($t_{span}$):', '0, 60');
     
     lbl_target = uilabel(inputGrid, 'Text', '--- Phase Portrait Target ---', 'FontWeight', 'bold');
-    lbl_target.Layout.Row = 13;
+    lbl_target.Layout.Row = 16;
     lbl_target.Layout.Column = [1 2];
     
     % Phase portrait target inputs 
     targetGrid = uigridlayout(inputGrid, [1 4]);
-    targetGrid.Layout.Row = 14; targetGrid.Layout.Column = [1 2];
+    targetGrid.Layout.Row = 17; targetGrid.Layout.Column = [1 2];
     targetGrid.Padding = [0 0 0 0]; 
     targetGrid.ColumnWidth = {35, '1x', 30, '1x'};
     
@@ -93,15 +117,14 @@ function LimitCyclebyPilotGainandDelay_GUI()
     % --- Buttons ---
     % Run Button
     btnRun = uibutton(inputGrid, 'Text', 'Run Sweep', 'ButtonPushedFcn', @(btn,event) runSim());
-    btnRun.Layout.Row = 15;
+    btnRun.Layout.Row = 18;
     btnRun.Layout.Column = 1;
     btnRun.BackgroundColor = [0 0.45 0.74];
     btnRun.FontColor = 'white';
     btnRun.FontWeight = 'bold';
-
     % Stop & Close Button
     btnStop = uibutton(inputGrid, 'Text', 'Stop & Close', 'ButtonPushedFcn', @(btn,event) stopSim());
-    btnStop.Layout.Row = 15;
+    btnStop.Layout.Row = 18;
     btnStop.Layout.Column = 2;
     btnStop.BackgroundColor = [0.85 0.20 0.20]; 
     btnStop.FontColor = 'white';
@@ -134,7 +157,7 @@ function LimitCyclebyPilotGainandDelay_GUI()
             runSim();
         end
     end
-
+    
     % --- Core Functions ---
     function stopSim()
         % Triggers the halt condition in the solvers and closes the app

@@ -1,4 +1,4 @@
-%% OLOP describing function for a rate-limited actuator (simple version)
+%% OLOP describing function for a rate-limited actuator (X-15 Flight 3-65-97, Michael J. Adams' Fatal Crash in 1967)
 %  Based on Gilbreath (AFIT/GAE/ENY/01M-02) and Duda's rate-limiter
 %  describing function. Everything is kept in radians to avoid deg/rad mix.
 
@@ -11,11 +11,9 @@ qco = 1.1;                  % pilot command amplitude
 R   = 60;                   % actuator rate limit
 K   = 13.68;                % pilot gain
 
-Gc  = tf( 5.21 * conv([1 -57.36], conv([1 4.26], [1 0.55])), ...
-          conv([1 2*0.442*22.85 22.85^2], conv([1 0], [1 1.16])) );
+Gc  = tf( 5.21 * conv([1 -57.36], conv([1 4.26], [1 0.55])), conv([1 2*0.442*22.85 22.85^2], conv([1 0], [1 1.16])) );
 
-Gac = tf(-10.524 * conv([1 1.562], conv([1 0.038], [1 0])), ...
-          conv([1 2*0.212*0.088 0.088^2], conv([1 3.75], [1 -1.44])) );
+Gac = tf(-10.524 * conv([1 1.562], conv([1 0.038], [1 0])), conv([1 2*0.212*0.088 0.088^2], conv([1 3.75], [1 -1.44])) );
 
 % Frequency responses on the whole grid, computed once
 Gcw  = squeeze(freqresp(Gc , w));
